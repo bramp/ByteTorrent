@@ -50,7 +50,10 @@ class Exception {
 
 /* Creats a random string of chars or length len
  [in] chars - Set of valid chars
- [in] len - Length of string
+ [in] len - Length of string (if null uses all possible chars)
 [out] str - The string to get some random chars
 */
-void createRandomString(char *str, char *chars, int len);
+void createRandomString(char *str, int len, char *chars = NULL);
+
+/* There is atoi64, but I couldn't find the other way around, so I made one :) */
+char *itoa64(INT64 value, char *string);

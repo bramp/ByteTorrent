@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "file.h"
 
-class file { 
+class File { 
    private:
       HANDLE hFile;
       char fileName[MAX_PATH];
@@ -62,8 +62,8 @@ class file {
          public: DiskFullException(char *pFilename) {strncpy(Filename, pFilename, MAX_PATH);};
       };
       
-      file(char *pFileName, int length);
+      File(char *pFileName, int length);
       int getPart(char *buffer, int start, int len);
       int setPart(char *buffer, int start, int len);
-      ~file();
+      ~File();
 };

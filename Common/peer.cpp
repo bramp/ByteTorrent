@@ -26,40 +26,29 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "stdafx.h"
-#include "common.h"
-
-/* Creats a random string of chars or length len
- [in] chars - Set of valid chars
- [in] len - Length of string
-[out] str - The string to get some random chars
+/* 
+   peer.cpp version 0.9 by me@bramp.net
+   Class to connect to peers
 */
-void createRandomString(char *str, int len, char *chars) {
-   
-   /* Seed the random-number generator */
-   srand( (unsigned)time( NULL ) );
 
-   /* Checks if we are using a set or not */
-   if (chars != NULL) {
+#include "stdafx.h"
+#include "transfer.h"
 
-      int charsLen = (int)strlen(chars);
+/* Listens on this port */
+Transfer::Peer::Peer(int port) {
 
-      /* Loop len times */
-      for (int i=0; i<len; i++) {
-         *str = chars[rand() % charsLen];
-         str++;
-      }
-
-   } else {
-      /* Loop len times */
-      for (int i=0; i<len; i++) {
-         *str = (char)(rand() % 255);
-         str++;
-      }
-   }
 }
 
-char *itoa64(INT64 value, char *string) {
-   sprintf(string, "%I64i", value);
-   return string;
+/* Connects out to this peer */
+Transfer::Peer::Peer(bee::String *peerID, char *ip, int port) {
+
+}
+
+Transfer::Peer::~Peer() {
+
+}
+
+/* Close the connection */
+void Transfer::Peer::Close() {
+
 }

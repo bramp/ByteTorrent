@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-class web {
+class Web {
    public:
       class URL {
          private:
@@ -61,7 +61,7 @@ class web {
          #define REQUESTTIMEOUT 5000
          
          private:
-            web::URL *url;
+            Web::URL *url;
             std::string reply;
             std::string header;
             std::string body;
@@ -78,7 +78,7 @@ class web {
                   ConnectionFailedException(int pWSAError) { WSAError = pWSAError; };
             };
             
-            Request(web::URL *pUrl);
+            Request(Web::URL *pUrl);
             void Connect();
             const char *getReply() { return reply.data(); };
             const char *getHeader() { return header.data(); };

@@ -37,9 +37,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAXTORRENTFILESIZE 1048576 /* 1MB Max size of a torrent in bytes */
 
-class torrent {
+class Torrent {
    private:
-      bee::dictionary *beeData;
+      bee::Dictionary *beeData;
       char infoHash[21];
       char niceHash[41];
       
@@ -47,9 +47,9 @@ class torrent {
       class TorrentNotFoundException : public Exception {};
       class InvalidTorrentException : public Exception {};
          
-      torrent(char *fileName); /* Open a torrent from file */
-      ~torrent(void);
-      bee::dictionary *getBeeObject() { return beeData; };
+      Torrent(char *fileName); /* Open a torrent from file */
+      ~Torrent(void);
+      bee::Dictionary *getObject() { return beeData; };
       const char *getInfoHash() { return infoHash; };
       const char *getNiceHash() { return niceHash; };
       const char *getTracker();

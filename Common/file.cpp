@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "file.h"
 
-file::file(char *pFileName, int length) {
+File::File(char *pFileName, int length) {
 
    DWORD ret = 0;
 
@@ -79,7 +79,7 @@ file::file(char *pFileName, int length) {
 }
 
 /* This function reads a specific part of the file */
-int file::getPart(char *buffer, int start, int len) {
+int File::getPart(char *buffer, int start, int len) {
    DWORD bytesRead;
    int ret;
    
@@ -106,7 +106,7 @@ int file::getPart(char *buffer, int start, int len) {
 }
 
 /* This function writes a specific part of the file */
-int file::setPart(char *buffer, int start, int len) {
+int File::setPart(char *buffer, int start, int len) {
    DWORD bytesWritten;
    int ret;
 
@@ -129,7 +129,7 @@ int file::setPart(char *buffer, int start, int len) {
    }
 }
 
-file::~file() {
+File::~File() {
 
    /* Enter critical section so we have exclusive rights to close the file */
    EnterCriticalSection(&fileLock); 
@@ -143,7 +143,7 @@ file::~file() {
    DeleteCriticalSection(&fileLock);
 }
 
-void file::throwError(char *pFilename, DWORD pError) {
+void File::throwError(char *pFilename, DWORD pError) {
   
    /* If we know this type of error throw a special case */
    switch (pError) {

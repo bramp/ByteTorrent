@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "sha1.h"
 
 /* Create a new torrent object from file */
-torrent::torrent(char *fileName) {
+Torrent::Torrent(char *fileName) {
 
    HANDLE inFile;
 
@@ -66,16 +66,19 @@ torrent::torrent(char *fileName) {
       bufferPtr = buffer;
       
       do { /* Main copy loops */
-         readResult = ReadFile(inFile, bufferPtr, 1024, &bytesRead, NULL);
+         readResult = ReadFile(inFile, bufferPtr, MIN(bufferSize, 1024), &bytesRead, NULL);
+         if (readResult == 0)
+            printf("%d", GetLastError());
          bufferPtr+=bytesRead;
-      } while (bytesRead != 0 && readResult != 0);
+         bufferSize -= 1024;
+      } while (readResult != 0 && bufferSize > 0);
       
       /* Now close file */
       CloseHandle(inFile);
       
       try {
          /* Now decode the torrent file into a dict */
-         beeData = (bee::dictionary *)bee::decode(buffer, &bytes);
+         beeData = (bee::Dictionary *)bee::decode(buffer, &bytes);
       } catch (bee::InvalidBeeDataException) {
          free(buffer);
          throw InvalidTorrentException();
@@ -85,7 +88,7 @@ torrent::torrent(char *fileName) {
       free(buffer);
       
       /* If it didn't turn out correct throw error */
-      if (beeData->getType()!=bee::dictionaryType) {
+      if (beeData->getType()!=bee::DictionaryType) {
          throw InvalidTorrentException();
       }
       
@@ -117,23 +120,23 @@ torrent::torrent(char *fileName) {
 	}
 }
 
-torrent::~torrent(void) {
+Torrent::~Torrent(void) {
    if (beeData != NULL)
       delete beeData;
 }
 
-const char *torrent::getTracker() {
-   bee::string *tracker;
-   tracker = (bee::string *)beeData->get("announce");
+const char *Torrent::getTracker() {
+   bee::String *tracker;
+   tracker = (bee::String *)beeData->get("announce");
    if (tracker != NULL)
       return tracker->get(); 
    else
       return NULL;
 }
 
-const char *torrent::setTracker(char *newTracker) {
-   bee::string *tracker;
-   tracker = (bee::string *)beeData->get("announce");
+const char *Torrent::setTracker(char *newTracker) {
+   bee::String *tracker;
+   tracker = (bee::String *)beeData->get("announce");
    if (tracker != NULL) {
       tracker->set(newTracker);
       return tracker->get(); 
@@ -146,16 +149,16 @@ const char *torrent::setTracker(char *newTracker) {
  [in] key - Key to look up, ie pieces or name...
 [ret] value - The value with the key, or NULL
 */
-const unsigned char *torrent::getInfoString(char *key) {
-   bee::dictionary *info;
-   bee::string *value;
+const unsigned char *Torrent::getInfoString(char *key) {
+   bee::Dictionary *info;
+   bee::String *value;
    
-   info = (bee::dictionary *)(beeData->get("info"));
+   info = (bee::Dictionary *)(beeData->get("info"));
    if (info == NULL) {
       return NULL;
    }
    
-   value = (bee::string *)(info->get(key));
+   value = (bee::String *)(info->get(key));
    if (value == NULL) {
       return NULL;
    }
@@ -167,16 +170,16 @@ const unsigned char *torrent::getInfoString(char *key) {
  [in] key - Key to look up, ie pieces or name...
 [ret] value - The value with the key, or NULL
 */
-INT64 torrent::getInfoInteger(char *key) {
-   bee::dictionary *info;
-   bee::integer *value;
+INT64 Torrent::getInfoInteger(char *key) {
+   bee::Dictionary *info;
+   bee::Integer *value;
    
-   info = (bee::dictionary *)(beeData->get("info"));
+   info = (bee::Dictionary *)(beeData->get("info"));
    if (info == NULL) {
       return NULL;
    }
    
-   value = (bee::integer *)(info->get(key));
+   value = (bee::Integer *)(info->get(key));
    if (value == NULL) {
       return NULL;
    }
@@ -190,7 +193,7 @@ INT64 torrent::getInfoInteger(char *key) {
 [out] size - The size of the file
 [ret] found - If we are returning a file or not
 */
-bool torrent::getFileName(int idx, const char **path, int *size) {
+bool Torrent::getFileName(int idx, const char **path, int *size) {
    
    int len;
    
@@ -213,7 +216,7 @@ bool torrent::getFileName(int idx, const char **path, int *size) {
    return true;
 }
 
-int torrent::saveToFile(char *filename) {
+int Torrent::saveToFile(char *filename) {
 
    HANDLE hFile;
    DWORD bytesWritten;

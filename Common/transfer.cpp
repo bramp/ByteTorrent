@@ -40,17 +40,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Creates a transfer
  [in] data - The name of the torrent
 */
-transfer::transfer(char *torrentFile) { //throws InvalidTorrentException, TorrentNotFoundException
+Transfer::Transfer(char *torrentFile) { //throws InvalidTorrentException, TorrentNotFoundException
 
    myTorrent = NULL;
    pieces = NULL;
    myFiles = NULL;
    
    /* Open the torrent file */
-   myTorrent = new torrent(torrentFile);
+   myTorrent = new Torrent(torrentFile);
 
    /* Set this transfers peer ID */
-   createRandomString(peerID, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890", 20);
+   createRandomString(peerID, 20);
    peerID[20] = '\0';
    
    /* Get the name for this transfer */
@@ -60,20 +60,23 @@ transfer::transfer(char *torrentFile) { //throws InvalidTorrentException, Torren
       torrentName = UNNAMEDTORRENT;
    }
 
+   this->remaining = 0;
+   this->listeningPort = 1000;
+   this->eventCallback = NULL;
 }
 
-void transfer::setSaveLocation(char *pSavePath) {
+void Transfer::setSaveLocation(char *pSavePath) {
    strncpy(savePath, pSavePath, MAX_PATH);
 }
 
-void transfer::setup() {
+void Transfer::setup() {
 
    const char *filename;
    char localFilename[MAX_PATH];
    int size;
    int i=0;
    
-   myFiles = new files();
+   myFiles = new Files();
    
    /* Create a list of files to work on */
    while (myTorrent->getFileName(i, &filename, &size)) {
@@ -86,50 +89,168 @@ void transfer::setup() {
    int pieceLen = (int)myTorrent->getInfoInteger("piece length");
    int piecesCount = (int) (filesLength / (INT64)pieceLen);
    
-
    /* Point the Pieces array at the correct thing */
-   pieces = new pieceMap(myTorrent->getInfoString("pieces"), piecesCount, pieceLen, myFiles);
+   pieces = new PieceMap(myTorrent->getInfoString("pieces"), piecesCount, pieceLen, myFiles);
    
-   int remaining = pieces->checkAll();
+   this->remaining = pieces->checkAll();
+
+   /* We set how many seconds between tracker connection, 0 to start with */
+   this->interval = 0;
+   this->state = transferState::initialised;
 }
 
-void transfer::start() {
-
-   web::URL *url;
-   web::Request *request;
-   //bee::dictionary *trackerData;
-   //int bytes;
+/* This sends data to the tracker and parses its return */
+void Transfer::sendTrackerData(char *event) {
 
    /* Get the tracker URL */
-   url = new web::URL((char *)myTorrent->getTracker());
+   Web::URL *url;
+   Web::Request *request;
+
+   /* Bee Data */
+   bee::Dictionary *trackerData;
+   bee::Integer *beeInterval;
+   bee::List *beePeers;
+   bee::Dictionary *peer;
+
+   int bytes;
+   int i;
+   
+   /* Some char arrays for the numbers used */
+   char port[6];
+   INT64 left64;
+   char left[21];
+
+   url = new Web::URL((char *)this->myTorrent->getTracker());
 
    /* Add all the info we want */
-   url->addQuery("info_hash", (char *)myTorrent->getInfoHash());
-   url->addQuery("peer_id", peerID);
+   url->addQuery("info_hash", (char *)this->myTorrent->getInfoHash());
+   url->addQuery("peer_id", this->peerID);
    //url->addQuery("ip', peerID);
-   url->addQuery("port", "6882");
+   url->addQuery("port", itoa(this->listeningPort, port, 10));
    url->addQuery("uploaded", "0");
    url->addQuery("downloaded", "0");
-   url->addQuery("left", "1");
-   url->addQuery("event", "started");
+   
+   if (event == NULL)
+      event = "";
+
+   url->addQuery("event", event);
+
+   left64 = (INT64)(this->remaining) * (INT64)this->pieces->getPieces();
+   url->addQuery("left", itoa64(left64, left));
 
    /* Now make a connection to the tracker */
-   request = new web::Request(url);
-   //request->Connect();
-   
+   request = new Web::Request(url);
+   request->Connect();
+
    /* Beedecode the data from the tracker */
-   //trackerData = (bee::dictionary *)bee::decode((char *)request->getBody(), &bytes);
+   trackerData = (bee::Dictionary *)bee::decode((char *)request->getBody(), &bytes);
+
+   trackerData->printme();
+   /* 
    
-   //trackerData->printme();
+   'interval':1800,
+   'peers':[
+      {
+      'ip':'127.0.0.1',
+      'peer id':'12345678901234567890',
+      'port':6884
+      }
+   ]
+   */
+   /* Update the Interval */
+   beeInterval = (bee::Integer *)trackerData->get("interval");
+
+   if (beeInterval != NULL)
+      this->interval = (int)beeInterval->get();
+      
+   /* Now cycle the peers and add them */
+   beePeers = (bee::List *)trackerData->get("peers");
    
-   //delete trackerData;
-   
+   if (beePeers != NULL) {
+      for (i = 0; i< beePeers->count(); i++) {
+         peer = (bee::Dictionary *)beePeers->get(i);
+         
+         if (peer != NULL) {
+            bee::String *peerID = (bee::String *)peer->get("peer id");
+            bee::String *ip = (bee::String *)peer->get("ip");
+            bee::Integer *port = (bee::Integer *)peer->get("port");
+
+            if (peerID != NULL && ip != NULL && port != NULL) {
+               peers[peerID] = new Peer(peerID, ip->get(), (int)port->get());
+            }
+            
+         }
+      }
+   }
+
+   delete trackerData;
    delete request;
    delete url;
-   
+}
+
+/* This loops around connecting to the tracker and dishing out connections */
+void Transfer::trackerThread(Transfer *me) {
+  
+   /* This is how long we sleep in each spin around the loop
+      Longer values mean the app will quit slower
+      Shorter values mean we will use more processor
+   */
+   const int SLEEPTIME = 5;
+   int loopCount = 0;
+
+   while (me->state != transferState::quit) {
+      
+      /* If we are quiting remove the interval */
+      if (me->state == transferState::quiting)
+         me->interval = 0;
+      
+      if ((loopCount * SLEEPTIME) >= me->interval) {
+         
+         loopCount = 0;
+
+         switch (me->state) {
+            case (transferState::initialised): {
+               
+               /* Set this to 60 incase we crash out of the sendTrackerData */
+               me->interval = 60;
+
+               /* Try announcing ourselfs to the tracker */
+               me->sendTrackerData("started");
+
+               /* If we have gotten this far then All systems are go */
+               me->state = transferState::running;
+               break;
+
+            /* Running and finished do the same thing */
+            } case (transferState::running): {
+            } case (transferState::finished): {
+               me->sendTrackerData("");
+               break;
+
+            } case (transferState::quiting): {
+               /* Start to close us down */
+               me->sendTrackerData("stopped");
+               /* Close all connections */
+               me->state = transferState::quit;
+               break;
+            }
+
+         } /* endswitch */
+      } else {
+         loopCount++;
+      }
+
+      Sleep(SLEEPTIME * 1000);
+   }
+}
+
+/* This spawns a new Tracker Thread */
+void Transfer::start() {
+   /* TODO add thread code */
+   trackerThread(this);
 };
 
-transfer::~transfer(void) {
+Transfer::~Transfer(void) {
    if (myTorrent != NULL)
       delete myTorrent;
    
@@ -145,37 +266,37 @@ transfer::~transfer(void) {
 /******************************************************************************
 Files Object Starts Here
 ******************************************************************************/
-transfer::files::files() {
+Transfer::Files::Files() {
    startIndex = NULL;
    lastIndex = NULL;
 }
 
-transfer::files::~files() {
+Transfer::Files::~Files() {
    
-   /* Delete the fileIndex list */
+   /* Delete the FileIndex list */
    while (startIndex != NULL) {
-      fileIndex *tmp = startIndex;
+      FileIndex *tmp = startIndex;
       
       /* Cleanup the data */     
       delete tmp->data;
       startIndex = tmp->nextIndex;
       
-      /* And now the fileIndex */
+      /* And now the FileIndex */
       delete tmp;
       
    }
 }
 
-void transfer::files::addFile(const char *fileName, int size) {
+void Transfer::Files::addFile(const char *fileName, int size) {
    
-   fileIndex *tmpIndex;
-   file *aFile;
+   FileIndex *tmpIndex;
+   File *aFile;
 
    /* Try to open/create the file */
-   aFile = new file((char *)fileName, size);
+   aFile = new File((char *)fileName, size);
 
    /* Create new file index */
-   tmpIndex = new fileIndex;
+   tmpIndex = new FileIndex;
 
    tmpIndex->data = aFile;
    tmpIndex->len = size;
@@ -190,10 +311,10 @@ void transfer::files::addFile(const char *fileName, int size) {
    lastIndex = tmpIndex;
 }
 
-INT64 transfer::files::length() {
+INT64 Transfer::Files::length() {
 
    INT64 length = 0;
-   fileIndex *idx;
+   FileIndex *idx;
 
    idx = startIndex;
 
@@ -205,10 +326,10 @@ INT64 transfer::files::length() {
    return length;
 }
 
-file *transfer::files::findPart(INT64 *start) {
+File *Transfer::Files::findPart(INT64 *start) {
 
-   fileIndex *idx = startIndex;
-   file *lastFile;
+   FileIndex *idx = startIndex;
+   File *lastFile;
 
    if (startIndex==NULL) {
       /* Some kind of error */
@@ -227,11 +348,11 @@ file *transfer::files::findPart(INT64 *start) {
    return lastFile;
 }
 
-int transfer::files::getPart(char *buffer, INT64 start, int len) {
+int Transfer::Files::getPart(char *buffer, INT64 start, int len) {
    
    int bytesRead;
    int TotalBytesRead = 0;
-   file *currentFile;
+   File *currentFile;
    INT64 currentPos = start;
 
    while (len > 0) {
@@ -264,7 +385,7 @@ int transfer::files::getPart(char *buffer, INT64 start, int len) {
 /******************************************************************************
 pieceMap Object Starts Here
 ******************************************************************************/
-transfer::pieceMap::pieceMap(unsigned const char *pPieceHash, int pPieces, int pPieceSize, files *pFiles) {
+Transfer::PieceMap::PieceMap(unsigned const char *pPieceHash, int pPieces, int pPieceSize, Transfer::Files *pFiles) {
       
    /* Set all the member vars */
    PieceHash = pPieceHash;
@@ -274,26 +395,40 @@ transfer::pieceMap::pieceMap(unsigned const char *pPieceHash, int pPieces, int p
    
    /* Malloc enough bits to count, 2 per pieces */
    map = (unsigned char*)malloc((pPieces/8)*2 + 1);
+   bitMap = (unsigned char*)malloc((pPieces/8) + 1);
    
-   memset(map, 0, (pPieces/8)*2);
+   //memset(map, 0, (pPieces/8)*2);
+   //memset(bitMap, 0, (pPieces/8));
    
+   /* Initialize the critical section */
+   InitializeCriticalSection (&pieceLock);
 }
 
-transfer::pieceMap::~pieceMap() {
+Transfer::PieceMap::~PieceMap() {
    free(map);
+   free(bitMap);
+   
+   /* Clean up the CriticalSection */
+   DeleteCriticalSection(&pieceLock);
 }
 
-int transfer::pieceMap::checkAll() {
+int Transfer::PieceMap::checkAll() {
    
    int i=0;
    INT64 filePos=0;
    INT64 len;
    unsigned char *mapPtr;
+   unsigned char *bitMapPtr;
    unsigned char mapMask = 0;
+   unsigned char bitMapMask = 0;
    char *buffer;
    unsigned const char *hash;
    int remaining = 0;
   
+   /* Enter critical section so we have exclusive rights to the maps */
+   EnterCriticalSection(&pieceLock); 
+
+   bitMapPtr = bitMap;
    mapPtr = map;
    buffer = (char*) malloc(pieceSize);
    hash = PieceHash;
@@ -301,6 +436,7 @@ int transfer::pieceMap::checkAll() {
    len = (INT64)pieceSize * (INT64)pieces;
 
    mapMask = 0xC0;
+   bitMapMask = 0x80;
 
    while (i<pieces) {
 
@@ -314,14 +450,22 @@ int transfer::pieceMap::checkAll() {
       11 - 3 Checked Valid
       */
       
+      /* Set affected area to zero */
+      *mapPtr &= ~mapMask;
+      *bitMapPtr &= ~bitMapMask;
+      
+      /* Check pieces and set correct bits */
       if (checkPiece(buffer, hash)) {
-         *mapPtr |= (mapMask & 0xFF);
+         *mapPtr |= mapMask;
+         *bitMapPtr |= bitMapMask;
       } else {
          *mapPtr |= (mapMask & 0xAA);
+         //*bitMapPtr |= (bitMapMask & 0x00);
          remaining++;
       }
       
       mapMask = mapMask >> 2;
+      bitMapMask = bitMapMask >> 1;
       
       i++;
       filePos+=pieceSize;
@@ -330,25 +474,47 @@ int transfer::pieceMap::checkAll() {
       if (mapMask == 0) {
          mapMask = 0xC0;
          mapPtr++;
+         if (bitMapMask==0) {
+            bitMapMask = 0x80;
+            bitMapPtr++;
+         }
       }
-      
    }
+   
+   free(buffer);
+
+   LeaveCriticalSection(&pieceLock);
 
    return remaining;
 }
 
-bool transfer::pieceMap::check(int idx) {
-   unsigned char* mapPtr;
+bool Transfer::PieceMap::check(int idx) {
+
+   //unsigned char* mapPtr;
+   char *buffer;
+   unsigned char *hash;
+  
+   buffer = (char*) malloc(pieceSize);
+      
+   hash = (unsigned char *)PieceHash + 20 * idx;
+      
+   Files->getPart(buffer, idx, pieceSize);
    
-   mapPtr = map + ((idx / 8) * 2);
-   
-   //checkPiece
-   
-   return false;
+   if (checkPiece(buffer, (unsigned char *)hash)) {
+      /* Good Piece */  
+      free(buffer);
+      setBit(idx, bitState::Valid);
+      return true;
+   } else {
+      /* Bad Piece */
+      free(buffer);
+      setBit(idx, bitState::InValid);
+      return false;
+   }
 }
 
 /* Returns true for valid */
-bool transfer::pieceMap::checkPiece(char *fileBuffer, unsigned const char *pieceHash) {
+bool Transfer::PieceMap::checkPiece(char *fileBuffer, unsigned const char *pieceHash) {
    unsigned char hash[21];
    int ret;
    
@@ -361,4 +527,71 @@ bool transfer::pieceMap::checkPiece(char *fileBuffer, unsigned const char *piece
    ret = strnicmp((char *)pieceHash, (char *)hash, 20);
    
    return (ret==0);
+}
+
+Transfer::PieceMap::bitState Transfer::PieceMap::getBit(int idx) {
+   
+   unsigned char *mapPtr;
+   unsigned char mapMask;
+   int bit;
+
+   //Move to the correct place in the map
+   mapPtr = map + (idx / 4);
+
+   //Figure out which mask to use
+   switch (idx % 4) {
+      case 0: mapMask = 0xC0; break;
+      case 1: mapMask = 0x30; break;
+      case 2: mapMask = 0x0C; break;
+      case 3: mapMask = 0x03; break;
+   }
+
+   //Mask out the correct values
+   bit = (mapMask & *mapPtr);
+
+   //Now shift down
+   bit = bit >> (3 - (idx % 4)) * 2;
+
+   return (bitState)bit;
+}
+
+
+void Transfer::PieceMap::setBit(int idx, Transfer::PieceMap::bitState value) {
+   unsigned char *mapPtr;
+   unsigned char *bitMapPtr;
+   unsigned char mapMask = 0;
+   unsigned char bitMapMask = 0;
+   int shift;
+   
+   /* Enter critical section so we have exclusive rights to the maps */
+   EnterCriticalSection(&pieceLock); 
+
+   bitMapPtr = (idx / 8) + bitMap;
+   mapPtr = (idx / 4) + map;
+   
+   /* Do the bitMap */
+   if (value==bitState::Valid) {
+      bitMapMask = 1 << (idx % 8);
+   } else {
+      bitMapMask = 0;
+   }
+
+   *bitMapPtr &= ~bitMapMask;
+   *bitMapPtr |= bitMapMask;
+
+   /* Do the normal map */
+   shift = (3 - (idx % 4)) * 2;
+   mapMask = 3 << shift ;
+   value = (bitState) (value << shift);
+   
+   *mapPtr &= ~mapMask;
+   *mapPtr |= value;
+
+   LeaveCriticalSection(&pieceLock);
+   
+}
+
+
+const unsigned char *Transfer::PieceMap::getBitMap() {
+   return bitMap;
 }

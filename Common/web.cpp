@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /******************************************************************************
 URL Object Starts Here
 ******************************************************************************/
-web::URL::URL(char *pUrl) {
+Web::URL::URL(char *pUrl) {
 
    char *ptr;
    int len;
@@ -165,7 +165,7 @@ web::URL::URL(char *pUrl) {
 }
 
 /* This function returns a full URL */
-const char *web::URL::getURL() {
+const char *Web::URL::getURL() {
 
    std::string sUrl;
    char tmpPort[6];
@@ -224,13 +224,13 @@ const char *web::URL::getURL() {
 }
 
 /* Adds data onto the query string */
-void web::URL::addQuery(char *pParam, char *pValue) {
+void Web::URL::addQuery(char *pParam, char *pValue) {
    /* We should encode the data */
    char *param;
    char *value;
    
-   param = web::URL::encode((unsigned char *)pParam);
-   value = web::URL::encode((unsigned char *)pValue);
+   param = Web::URL::encode((unsigned char *)pParam);
+   value = Web::URL::encode((unsigned char *)pValue);
    
    query[param] = value;
    
@@ -240,7 +240,7 @@ void web::URL::addQuery(char *pParam, char *pValue) {
 
 /* Encodes some data in the HTTP Escape format
    Please free my char * after usage :)        */
-char *web::URL::encode(unsigned char *data) {
+char *Web::URL::encode(unsigned char *data) {
    
    char *retChar;
    std::string ret = "";
@@ -276,7 +276,7 @@ char *web::URL::encode(unsigned char *data) {
 }
 
 /* Destory the object and return any memory */
-web::URL::~URL(void) {
+Web::URL::~URL(void) {
 
    if (url!=NULL)
       free(url);
@@ -292,7 +292,7 @@ web::URL::~URL(void) {
 /******************************************************************************
 Request Object Starts Here
 ******************************************************************************/
-web::Request::Request(web::URL *pUrl) {
+Web::Request::Request(Web::URL *pUrl) {
 
    WSADATA wsaData;
 
@@ -304,7 +304,7 @@ web::Request::Request(web::URL *pUrl) {
 
 }
 
-void web::Request::Connect() {
+void Web::Request::Connect() {
    
 	SOCKET httpSocket;
 	int ret;
@@ -405,6 +405,6 @@ void web::Request::Connect() {
 
 }
 
-web::Request::~Request(void) {
+Web::Request::~Request(void) {
    WSACleanup ();
 }
