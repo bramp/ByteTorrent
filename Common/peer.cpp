@@ -323,9 +323,37 @@ DWORD WINAPI Transfer::Peer::peerThread(LPVOID lpParameter) {
 
    Log::AddMsg("Connected To Peer IP:%s:%hu", inet_ntoa(me->addr.sin_addr), (void *)ntohs(me->addr.sin_port));
 
+   int ret;
+   int len;
+
+   /* Before we start the loop we need to place the socket into non-blocking mode */
+   if (ioctlsocket (me->sock, FIONBIO, 1) == SOCKET_ERROR) {
+      Log::AddWsaMsg("Unable to place socket in non-blocking mode", WSAGetLastError());
+      closesocket(me->sock);
+      me->state = peerState::closed;
+      return false;
+   }
+
    /* Now lets start the main loop */
    while (me->state == peerState::connected) {
-      recv
+      
+      /* Try receiving some data */
+      ret = recv(me->sock, data, sizeof(data), 0);
+      
+      /* If check if socket error occurs */
+      if (ret == SOCKET_ERROR) {
+         /* Check if it was a blocking error, if so ignore it, otherwise... */
+         if ((ret = WSAGetLastError() != WSAEWOULDBLOCK) {
+            Log::AddWsaMsg("Socket Error IP:%s:%hu", ret, inet_ntoa(me->addr.sin_addr), (void *)ntohs(me->addr.sin_port));
+         }
+
+      /* Check if connection is closed */
+      } else if (ret == 0) {
+         Log::AddWsaMsg("Connection Closed IP:%s:%hu", WSAGetLastError());
+         closesocket(me->sock);
+         me->state = peerState::closed;
+         return false;
+      }
    }
 
    return true;
