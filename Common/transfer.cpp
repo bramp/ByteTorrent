@@ -52,7 +52,9 @@ Transfer::Transfer(char *torrentFile) { //throws InvalidTorrentException, Torren
    /* Set this transfers peer ID */
    createRandomString(peerID, 20);
    peerID[20] = '\0';
-   
+   /* For testing reasons I'm setting this fixed */
+   strcpy(peerID, "ABCDEFGHIJKLMNOPQRST");
+
    /* Get the name for this transfer */
    torrentName = (const char*)(myTorrent->getInfoString("name"));
    
@@ -151,13 +153,14 @@ void Transfer::sendTrackerData(char *event) {
    trackerData = (bee::Dictionary *)bee::decode((char *)request->getBody(), &bytes);
 
    /* Print out data (debugging line) */
-   trackerData->printme();
+   //trackerData->printme();
 
    /*Check for failure */
    failure = (bee::String *)trackerData->get("failure reason");
    
    if (failure != NULL) {
       /* Something has gone wrong (we should log this) */
+      Log::AddMsg ("Bad data from tracker %s", failure->get());
    }
 
    /* Update the Interval */
@@ -215,9 +218,14 @@ DWORD WINAPI Transfer::trackerThread(LPVOID lpParameter) {
       try {
          peerListener = new PeerListener(me->peers, me->listeningPort);
       } catch (PeerListener::PortInUseException) {
+         Log::AddWsaMsg("Error setting up PeerListener port:%i", WSAGetLastError(), (void *)me->listeningPort);
          (me->listeningPort)++;
+      } catch (PeerListener::SocketErrorException e) {
+         Log::AddWsaMsg("Error setting up PeerListener port:%i", e.getErrorCode(), (void *)me->listeningPort);
       }
    }
+
+   Log::AddWsaMsg("PeerListener Listening On Port:%i", WSAGetLastError(), (void *)me->listeningPort);
 
    while (me->state != transferState::quit) {
       

@@ -226,20 +226,16 @@ class Transfer {
             bee::String *infoHash;
 
          public:
-            PeerListener(PeerList *peers, int port);
+            class SocketErrorException : public Exception {
+               public: SocketErrorException(int errorCode) { mErrorCode = errorCode; };
+            };
+
+            class PortInUseException : public Exception {};
+
+            PeerListener(PeerList *peers, int port) throw(...);
 
             /* Stops Listening */
             void Close() { closing = true; };
-
-            class SocketErrorException : public Exception {
-               public: 
-                  DWORD error;
-                  SocketErrorException(DWORD pError) {error = pError; };
-            };
-
-            class PortInUseException : public Exception {
-               public: PortInUseException() {};
-            };
       };
 
       /* Torrent file associated with this */

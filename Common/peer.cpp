@@ -84,8 +84,10 @@ DWORD WINAPI Transfer::PeerListener::peerListenerThread(LPVOID lpParameter) {
             /* Create a new peer */
             incomingPeer = new Peer(me->peers, sock);
 
-            /* A catch all.. We don't really care about Peer errors (well at the moment( */
-         } catch (...) {}
+            /* A catch all.. We don't really care about Peer errors (well at the moment) */
+         } catch (...) {
+            Log::AddWsaMsg("Peer didn't connect correctly", WSAGetLastError());
+         }
       } else {
          /* Sleep here to stop fast spinning error loops */
          Sleep(5000);
@@ -93,6 +95,9 @@ DWORD WINAPI Transfer::PeerListener::peerListenerThread(LPVOID lpParameter) {
 
    } while (!(me->closing));
    
+   /* Don't forget the clean up */
+   closesocket(me->conn);
+
    return true;
 }
 
@@ -109,7 +114,7 @@ Transfer::PeerListener::PeerListener(PeerList *peers, int port) {
 	conn = socket(AF_INET,SOCK_STREAM,0);
    
    if (conn == INVALID_SOCKET) {
-      throw new SocketErrorException(WSAGetLastError());
+      throw SocketErrorException(WSAGetLastError());
    }
 
    /* Choses settings for the socket to bind to */
@@ -125,10 +130,10 @@ Transfer::PeerListener::PeerListener(PeerList *peers, int port) {
       err = WSAGetLastError();
       switch (err) {
          case WSAEADDRINUSE:
-            throw new PortInUseException();
+            throw PortInUseException();
             break;
          default:
-            throw new SocketErrorException(err);
+            throw SocketErrorException(err);
       }
    }
 
@@ -140,10 +145,10 @@ Transfer::PeerListener::PeerListener(PeerList *peers, int port) {
       err = WSAGetLastError();
       switch (err) {
          case WSAEADDRINUSE:
-            throw new PortInUseException();
+            throw PortInUseException();
             break;
          default:
-            throw new SocketErrorException(err);
+            throw SocketErrorException(err);
       }
    }
 
@@ -165,13 +170,17 @@ Peer Object Starts Here
 Transfer::Peer::Peer(PeerList *peerList, SOCKET incoming) {
    int addrLen = sizeof(this->addr);
 
+   this->incoming = true;
+   
    /* Set up local vars */
    this->sock = incoming;
    getsockname(incoming, (sockaddr *)&(this->addr), &addrLen);
    this->state = peerState::connected;
-   this->incoming = true;
-
+   
    this->peerList = peerList;
+
+   this->doneHandShake = false;
+   this->peerID = NULL;
 
    /* Now do the handShake, 
       If we fail a exception is thrown from inside */
@@ -194,8 +203,9 @@ void Transfer::Peer::handShake() {
 
    /* If no data or a error just give up */
    if (ret < len) {
+      Log::AddWsaMsg("Peer didn't respond IP:%s", WSAGetLastError(), inet_ntoa(this->addr.sin_addr));
       closesocket(this->sock);
-      throw new PeerConnectException();
+      throw PeerConnectException();
    }
 
    /* Send out the protocol line */
@@ -206,8 +216,9 @@ void Transfer::Peer::handShake() {
    /* If this isn't the protocol line, panic :) */
    if ((len != (sizeof(PROTOCOL) - 1)) || (memcmp(&data[1], PROTOCOL, len) != 0)) {
       /* Close the socket, throw */
+      Log::AddWsaMsg("Peer sent bad Protocol line IP:%s", WSAGetLastError(), inet_ntoa(this->addr.sin_addr));
       closesocket(this->sock);
-      throw new PeerConnectException();
+      throw PeerConnectException();
    }
 
    /* Now send the 8 empty bytes */
@@ -220,8 +231,9 @@ void Transfer::Peer::handShake() {
 
    /* If no data or a error just give up */
    if (ret < 8) {
+      Log::AddWsaMsg("Peer didn't respond IP:%s", WSAGetLastError(), inet_ntoa(this->addr.sin_addr));
       closesocket(this->sock);
-      throw new PeerConnectException();
+      throw PeerConnectException();
    }
 
    /* Now send the torrent SHA1 hash */
@@ -232,8 +244,9 @@ void Transfer::Peer::handShake() {
 
    /* If no data or a error just give up or the torrent hash doesn't match */
    if (ret < 20 || (memcmp(data, this->peerList->infoHash, 20) != 0)) {
+      Log::AddWsaMsg("Peer's torrent hash didn't match IP:%s", WSAGetLastError(), inet_ntoa(this->addr.sin_addr));
       closesocket(this->sock);
-      throw new PeerConnectException();
+      throw PeerConnectException();
    }
 
    /* Now send our peer ID */
@@ -242,17 +255,19 @@ void Transfer::Peer::handShake() {
    /* Recv the peer ID */
    ret = recv(this->sock, data, 20, 0);
 
-   /* If no data or a error just give up or the torrent hash doesn't match */
+   /* If no data or no peer ID */
    if (ret < 20) {
+      Log::AddWsaMsg("Peer didn't respond IP:%s", WSAGetLastError(), inet_ntoa(this->addr.sin_addr));
       closesocket(this->sock);
-      throw new PeerConnectException();
+      throw PeerConnectException();
    }
 
    /* If we have a blank ID lets create a new one */
    if (this->peerID != NULL) {
       if (memcmp(data, this->peerID->get(), 20) != 0) {
+         Log::AddMsg("Peer ID doesn't match from IP:%s", inet_ntoa(this->addr.sin_addr));
          closesocket(this->sock);
-         throw new PeerConnectException();
+         throw PeerConnectException();
       }
    } else {
       this->peerID = new bee::String(data, 20);
@@ -292,6 +307,8 @@ DWORD WINAPI Transfer::Peer::peerThread(LPVOID lpParameter) {
 
          /* Check for errors and throw the correct type */
          if (err == SOCKET_ERROR) {
+            //unsigned short port = ;
+            Log::AddWsaMsg("Failed Connecting To Peer IP:%s:%hu", WSAGetLastError(), inet_ntoa(me->addr.sin_addr), (void *)ntohs(me->addr.sin_port));
             closesocket(me->sock);
             me->state = peerState::closed;
             return false;
@@ -304,8 +321,12 @@ DWORD WINAPI Transfer::Peer::peerThread(LPVOID lpParameter) {
       }
    }
 
+   Log::AddMsg("Connected To Peer IP:%s:%hu", inet_ntoa(me->addr.sin_addr), (void *)ntohs(me->addr.sin_port));
+
    /* Now lets start the main loop */
-   
+   while (me->state == peerState::connected) {
+      recv
+   }
 
    return true;
 }
@@ -323,6 +344,7 @@ Transfer::Peer::Peer(PeerList *peerList, bee::String *peerID, char *ip, int port
    this->incoming = false;
    this->sock = INVALID_SOCKET;
    this->peerList = peerList;
+   this->doneHandShake = false;
 
    /* Add ourselfs to the list */
    this->peerList->add(this);

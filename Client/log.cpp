@@ -49,8 +49,12 @@ void Log::getTime(char *buffer) {
 
 void Log::writeFile(char *buffer) {
    DWORD bytesWritten;   
-   
+   char date[1024];
+
+   getTime(date);
+
    EnterCriticalSection(&logMutex);
+   WriteFile(logFile, date, (DWORD)strlen(date), &bytesWritten, NULL);
    WriteFile(logFile, buffer, (DWORD)strlen(buffer), &bytesWritten, NULL);
    WriteFile(logFile, "\r\n", 2, &bytesWritten, NULL);
    FlushFileBuffers(logFile);

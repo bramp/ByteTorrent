@@ -39,10 +39,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class Exception {
    protected:
       char *mError;
+      int mErrorCode;
    public:
       Exception() { mError = ""; };
       Exception(char *error) { mError = error; };
+      Exception(int errorCode) { mErrorCode = errorCode; };
       char *getError() { return mError; };
+      int getErrorCode() { return mErrorCode; };
 };
 
 #define MIN(A, B) ((A) < (B) ? (A) : (B))

@@ -39,6 +39,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
    char *filename = "C:\\downloads\\BitTorrent-3.2.1b.zip.torrent";
 
    Log::OpenLog("log.txt");
+   Log::AddMsg ("Started Logging");
 
    try {
 
@@ -60,7 +61,8 @@ int _tmain(int argc, _TCHAR* argv[]) {
       printf("Diskfull writing %s\n", e.Filename );
    }
 
-   Log::CloseLog("log.txt");
+   Log::AddMsg ("Finished Logging");
+   Log::CloseLog();
 
    return 0;
 }
