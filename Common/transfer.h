@@ -34,61 +34,73 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "torrent.h"
+#include "file.h"
 
 class transfer {
    private:
-   
-      /* This class allows accept to files in a random and thread-safe way */
-      class file { 
+
+      /* This gets populated so I can map Pieces to files */
+      class files {
+      
          private:
-            HANDLE hFile;
-            char fileName[MAX_PATH];
-            int fileLength;
-            CRITICAL_SECTION fileLock;
+            class fileIndex {
+               public:
+                  file *data;
+                  int len;
+                  fileIndex *nextIndex;
+            };
+
+            fileIndex *startIndex;
+            fileIndex *lastIndex;
+            
+            /* Returns a file, start and len to write. Also returns true if we are to write to
+               another file also */
+            //bool findPart(INT64 begin, const file *file, const int *start, const int *len);
+            file *findPart(INT64 *start);
             
          public:
-            class FileErrorException : protected Exception {
-               public:
-                  DWORD Error;
-                  FileErrorException(DWORD pError) { Error = pError; };
-            };
-                     
-            file(char *pFileName, int length);
-            int getPart(char *buffer, int start, int len);
-            int setPart(char *buffer, int start, int len);
-            ~file();
-      };
-
-      /* This gets populated so I can map peices to files */
-      class fileIndex {
-         public:
-            file *data;
-            INT64 lastIdx;
-            fileIndex *nextIndex;
+            files();
+            ~files();
+            /* Finds which file(s) and sets a part in it */
+            int getPart(char *buffer, INT64 start, int len);
+            int setPart(char *buffer, INT64 start, int len);
+            
+            void addFile(const char *fileName, int size);
+            
+            INT64 length();
       };   
+
+      class pieceMap {
+         private:
+            unsigned const char *PieceHash;
+            int pieces;
+            int pieceSize;
+            unsigned char *map;
+            bool checkPiece(char *fileBuffer, unsigned const char *pieceHash);
+            DWORD WINAPI checkAllLoader( LPVOID lpParam );
+            files *Files;
+            CSHA1 sha;
+
+         public:
+            pieceMap(unsigned const char *pPieceHash, int pPieces, int pPieceSize, files *pFiles);
+            ~pieceMap();
+            int checkAll();
+            bool check(int idx);
+      };
       
       class connection { };
-      
-      class piece {
-         private:
-            int pieceIndex;
-         
-         public:  
-            piece(int index, int len);
-            int getIndex() { return pieceIndex; };
-            ~piece();
-         
-      };
       
       torrent *myTorrent;
       const char *torrentName;
       char peerID[21];
-      int pieceLen;
-      unsigned const char *pieces;
-      fileIndex *files;
+      pieceMap *pieces;
+      files *myFiles;
+      char savePath[MAX_PATH];
       
    public:
       transfer(char *torrentFile);
+      void setSaveLocation(char *pSavePath);
+      void setup();
       void start();
       ~transfer(void);
 };

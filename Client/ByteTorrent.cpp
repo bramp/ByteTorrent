@@ -36,14 +36,22 @@ int _tmain(int argc, _TCHAR* argv[]) {
    
    transfer *download;
    
-   char *filename = "C:\\downloads\\scrubs.s02e21.my.drama.queen-ftv.torrent";
+   char *filename = "C:\\downloads\\Within the Woods (Evil Dead Prequel).mpg.torrent";
 
-   download = new transfer(filename);
+   try {
 
-   download->start();
+      download = new transfer(filename);
+      
+      download->setSaveLocation ("c:\\downloads\\");
+      download->setup();
+      download->start();
+      
+      delete download;
 
-   delete download;
-   
+   } catch (file::DiskFullException e) {
+      printf("Blah %s", e.Filename );
+   }
+
 	return 0;
 }
 

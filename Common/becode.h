@@ -43,7 +43,7 @@ class bee {
          stringType
       };
    
-      class InvalidBeeDataException : protected Exception {
+      class InvalidBeeDataException : public Exception {
          public: InvalidBeeDataException(char *error) { mError = error; };
       };
    
@@ -63,10 +63,15 @@ class bee {
             std::map<std::string, bee::beeObject*> dict;
          public:
             dictionary(char *data, int *bytesRead);
-            ~dictionary();
-            bee::beeObject *get(char *key);
-            void printme();
             bee::beeType getType() { return bee::dictionaryType; };
+            ~dictionary();
+            
+            bee::beeObject *get(char *key);
+            void set(char *key, bee::beeObject *value);
+            bee::beeObject *remove(char *key);
+            
+            void printme();
+            
             char *encode();
       };
 
@@ -84,9 +89,16 @@ class bee {
 
          public:
             list(char *data, int *bytesRead);
-            ~list();
-            void printme();
             bee::beeType getType() { return bee::listType; };
+            ~list();
+            
+            bee::beeObject *get(int idx);
+            void set(int idx, bee::beeObject *value);
+            void add(bee::beeObject *value, int idx=0);
+            bee::beeObject *remove(int idx);
+            int count();
+            
+            void printme();
             char *encode();
       };
 
@@ -98,6 +110,7 @@ class bee {
          public:
             integer(char *data, int *bytesRead);
             INT64 getInt();
+            void set(INT64 value);
             void printme();
             bee::beeType getType() { return bee::integerType; };
             char *encode();

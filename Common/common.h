@@ -37,7 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define UNNAMEDTORRENT "Unnamed"
 
 class Exception {
-   public:
+   protected:
       char *mError;
    public:
       Exception() { mError = ""; };

@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /* 
-   torrent.cpp version 0.9 by me@bramp.net
+   torrent.h version 0.9 by me@bramp.net
    Class to store info on a torrent file
 */
 
@@ -44,8 +44,8 @@ class torrent {
       char niceHash[41];
       
    public:
-      class TorrentNotFoundException : protected Exception {};
-      class InvalidTorrentException : protected Exception {};
+      class TorrentNotFoundException : public Exception {};
+      class InvalidTorrentException : public Exception {};
          
       torrent(char *fileName); /* Open a torrent from file */
       ~torrent(void);

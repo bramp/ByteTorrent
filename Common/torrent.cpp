@@ -197,7 +197,7 @@ bool torrent::getFileName(int idx, const char **path, int *size) {
    len = (int)getInfoInteger("length");
    
    /* Check if we have more than one file name */
-   if (len!=NULL) {
+   if (len!=0) {
       /* One filename */
       if (idx > 0) {
          return false;
