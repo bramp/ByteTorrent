@@ -28,8 +28,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
 Nice little Torrent File Editing Console App
+Allows you to change the name of the trackers for a bunch of files
 
 CHANGELOG
+0.94 Fixed a memory leak... opps
+     Added better directory support ie for btchange c:\blah
 0.93 Stopped it from thinking directories were files
      Put a limit on the size of torrents, 1mb currently
 0.92 Fixed the last parameter
@@ -40,14 +43,17 @@ CHANGELOG
 #include "stdafx.h"
 #include "common/torrent.h"
 
+#define VERSION "0.94"
+
+/* Different error messages in the app */
 #define FINDERROR "Please specify word to find\n"
 #define FINDSTARERROR "Finds expression can't have wildcard characters (* or ?)\n"
 #define REPLACEERROR "Please specify tracker to replace with\n"
 #define NOMATCHERROR "Sorry no matchs\n"
 
-
+/* Shows the default program usage */
 void showUsage(_TCHAR* argv[]) {
-   printf("BTChange 0.93 - Easily changes trackers in many torrents (/? for more)\n\n", argv[0]);
+   printf("BTChange %s - Easily changes trackers in many torrents (/? for more)\n\n", VERSION, argv[0]);
    printf("Usage: %s [-f find] [-r replace] [/?] [files]\n", argv[0]);
 }
 
@@ -77,7 +83,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
          printf("\nExample:  %s A*.torrent\n", argv[0]);
          printf("Shows info for all torrents begining with A\n");
          printf("\nPlease use with care. You could accidently ruin all your torrents\n");
-         printf("                                                  by me@bramp.net\n"); 
+         printf("                                                 (bytetorrent.sf.net)\n"); 
          return 0;
       
       /* Check for find */
@@ -136,6 +142,18 @@ int _tmain(int argc, _TCHAR* argv[]) {
       
       int matchs = 0;
       torrent *t;
+      char currentFile[MAX_PATH];
+      char searchDirectory[MAX_PATH];
+      int searchDirectoryLen;
+      
+      /* Figure out the directory these files are in */
+      searchDirectoryLen = (int)(strrchr(targetFiles, '\\') - targetFiles);
+      if (searchDirectoryLen > 0) {
+         strncpy(searchDirectory, targetFiles, searchDirectoryLen);
+         searchDirectory[searchDirectoryLen] = '\0';
+      } else {
+         strcpy(searchDirectory, "");
+      }
       
       /* Loop for each matched file */
       do {
@@ -144,8 +162,12 @@ int _tmain(int argc, _TCHAR* argv[]) {
          try {
             /* Check the file isn't a directory */
             if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+               
+               /* Find its full path */
+               _snprintf(currentFile, MAX_PATH, "%s\\%s", searchDirectory, FindFileData.cFileName);
+               
                /* Open the torrent */
-               t = new torrent(FindFileData.cFileName);
+               t = new torrent(currentFile);
                
                /* Check if this torrent matchs */
                if ( (findTracker==NULL) || (strstr(t->getTracker(), findTracker))!=NULL ) {
@@ -158,7 +180,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
                      int ret;
                      
                      t->setTracker(replaceTracker);
-                     ret = t->saveToFile(FindFileData.cFileName);
+                     ret = t->saveToFile(currentFile);
                      
                      if (ret!=0) {
                         printf("Error %i altering torrent file\n", ret);
@@ -168,7 +190,8 @@ int _tmain(int argc, _TCHAR* argv[]) {
                   printf ("Tracker: %s\nHash: %s\n\n", t->getTracker(), t->getNiceHash());
 
                } /* if ( (findTracker==NULL) || (strstr(t->getTracker(), findTracker))!=NULL ) */
-
+               
+               delete t;
             } /* if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) */
          
          } catch (torrent::TorrentNotFoundException) {
