@@ -63,6 +63,7 @@ Transfer::Transfer(char *torrentFile) { //throws InvalidTorrentException, Torren
    this->remaining = 0;
    this->listeningPort = 1000;
    this->eventCallback = NULL;
+   this->peers = NULL;
 }
 
 void Transfer::setSaveLocation(char *pSavePath) {
@@ -94,6 +95,9 @@ void Transfer::setup() {
    
    this->remaining = pieces->checkAll();
 
+   /* Set up our peer List */
+   peers = new PeerList((char *) this->myTorrent->getInfoHash(), this->peerID);
+
    /* We set how many seconds between tracker connection, 0 to start with */
    this->interval = 0;
    this->state = transferState::initialised;
@@ -111,6 +115,7 @@ void Transfer::sendTrackerData(char *event) {
    bee::Integer *beeInterval;
    bee::List *beePeers;
    bee::Dictionary *peer;
+   bee::String *failure;
 
    int bytes;
    int i;
@@ -145,18 +150,16 @@ void Transfer::sendTrackerData(char *event) {
    /* Beedecode the data from the tracker */
    trackerData = (bee::Dictionary *)bee::decode((char *)request->getBody(), &bytes);
 
+   /* Print out data (debugging line) */
    trackerData->printme();
-   /* 
+
+   /*Check for failure */
+   failure = (bee::String *)trackerData->get("failure reason");
    
-   'interval':1800,
-   'peers':[
-      {
-      'ip':'127.0.0.1',
-      'peer id':'12345678901234567890',
-      'port':6884
-      }
-   ]
-   */
+   if (failure != NULL) {
+      /* Something has gone wrong (we should log this) */
+   }
+
    /* Update the Interval */
    beeInterval = (bee::Integer *)trackerData->get("interval");
 
@@ -165,7 +168,7 @@ void Transfer::sendTrackerData(char *event) {
       
    /* Now cycle the peers and add them */
    beePeers = (bee::List *)trackerData->get("peers");
-   
+      
    if (beePeers != NULL) {
       for (i = 0; i< beePeers->count(); i++) {
          peer = (bee::Dictionary *)beePeers->get(i);
@@ -174,11 +177,15 @@ void Transfer::sendTrackerData(char *event) {
             bee::String *peerID = (bee::String *)peer->get("peer id");
             bee::String *ip = (bee::String *)peer->get("ip");
             bee::Integer *port = (bee::Integer *)peer->get("port");
+            Peer *newPeer;
 
             if (peerID != NULL && ip != NULL && port != NULL) {
-               peers[peerID] = new Peer(peerID, ip->get(), (int)port->get());
+               try {
+                  newPeer = new Peer(this->peers, peerID, ip->get(), (int)port->get());
+                  //peers.add(newPeer);
+               } catch (...) { }
             }
-            
+
          }
       }
    }
@@ -189,14 +196,28 @@ void Transfer::sendTrackerData(char *event) {
 }
 
 /* This loops around connecting to the tracker and dishing out connections */
-void Transfer::trackerThread(Transfer *me) {
+DWORD WINAPI Transfer::trackerThread(LPVOID lpParameter) {
   
    /* This is how long we sleep in each spin around the loop
       Longer values mean the app will quit slower
       Shorter values mean we will use more processor
    */
+   Transfer *me = (Transfer *)lpParameter;
    const int SLEEPTIME = 5;
    int loopCount = 0;
+   PeerListener *peerListener = NULL;
+
+   me->listeningPort = STARTPORT;
+
+   /* This loop spins trying to create a new peerListener.
+      The reason it spins is to increment the port until it finds a valid one */
+   while ((peerListener == NULL) && (me->listeningPort < ENDPORT)) {
+      try {
+         peerListener = new PeerListener(me->peers, me->listeningPort);
+      } catch (PeerListener::PortInUseException) {
+         (me->listeningPort)++;
+      }
+   }
 
    while (me->state != transferState::quit) {
       
@@ -242,6 +263,8 @@ void Transfer::trackerThread(Transfer *me) {
 
       Sleep(SLEEPTIME * 1000);
    }
+
+   return true;
 }
 
 /* This spawns a new Tracker Thread */
@@ -260,6 +283,9 @@ Transfer::~Transfer(void) {
       
    if (pieces != NULL)
       delete pieces;
+
+   if (peers != NULL)
+      delete peers;
 
 }
 

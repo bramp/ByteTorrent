@@ -36,6 +36,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "torrent.h"
 #include "file.h"
 
+#define STARTPORT 1000
+#define ENDPORT 1100
+#define BUFFERSIZE 1024 //Must be no smaller than 20
+#define PROTOCOL "BitTorrent protocol"
+
 class Transfer {
    private:
 
@@ -115,10 +120,46 @@ class Transfer {
             int getPieceSize() { return pieceSize; };
             int getPieces() { return pieces; };
       };
-      
+
+      /* Keep track of all the peers, and what file they are downloading */
+      class PeerList {
+         private:
+            /* Allows mutal exclusive access to the peers list */
+            CRITICAL_SECTION peersLock;
+
+            /* List of all the peers sent to us by the tracker keyed on their peerID*/
+            std::map<bee::String*, void*> peers;
+
+            int peerCount;
+
+         public:
+            PeerList(char *infoHash, char *peerID);
+            ~PeerList();
+            
+            /* Adds new peer */
+            void add(void* peer);
+
+            /* Returns peer with this ID, returns NULL if none found */
+            void* get(bee::String* peerID);
+
+            /* Remove old peers (ie ones that we can't connect to) */
+            int removeDeadPeers();
+
+            /* Info hash of the torrent */
+            char *infoHash;
+
+            /* Our peer ID */
+            char *peerID;
+
+      };
+
       class Peer {
          public:
-            
+
+            class PeerConnectException : public Exception {
+               public: PeerConnectException() {};
+            };
+
             enum peerState {
                waiting,
                connected,
@@ -126,22 +167,75 @@ class Transfer {
             };
 
          private:
+            /* ID of the peer we are connected to */
             bee::String *peerID;
-            struct sockaddr_in addr;
             peerState state;
+            
+            struct sockaddr_in addr;
+            SOCKET sock;
+
+            /* A buffer to hold the recieved TCP data */
+            char data[BUFFERSIZE];
+            
+            /* Two pointers to manage the processing of the data */
+            //char *dataStart;
+            //char *dataEnd;
+
+            /* Onces connected we spawn a new worker thread */
+            static DWORD WINAPI peerThread(LPVOID lpParameter);
+
+            /* Carrys out the handshake */
+            void handShake();
+            bool doneHandShake;
+
+            /* Tells us if it was a incoming or outgoing connection */
+            bool incoming;
+
+            /* The peerList that we belong to */
+            PeerList *peerList;
 
          public:
-            /* Listens on this port */
-            Peer(int port);
+            /* Accepts a incoming connection */
+            Peer(class Transfer::PeerList *peerList, SOCKET incoming);
 
             /* Connects out to this peer */
-            Peer(bee::String *peerID, char *ip, int port);
+            Peer(class Transfer::PeerList *peerList, bee::String *peerID, char *ip, int port);
             ~Peer();
 
+            /* Connects to the peer */
+            void Connect();
+            
             /* Close the connection */
             void Close();
       
             peerState getState() { return state; };
+      };
+
+     
+      class PeerListener {
+         private:
+            /* Member called to listen out */
+            static DWORD WINAPI peerListenerThread(LPVOID lpParameter);
+
+            /* Used to hold all the peers */
+            PeerList *peers;
+
+            SOCKET conn;
+            int port;
+            bool closing;
+            bee::String *infoHash;
+
+         public:
+            PeerListener(PeerList *peers, int port);
+
+            /* Stops Listening */
+            void Close() { closing = true; };
+
+            class SocketErrorException : public Exception {
+               public: 
+                  DWORD error;
+                  SocketErrorException(DWORD pError) {error = pError; };
+            };
 
             class PortInUseException : public Exception {
                public: PortInUseException() {};
@@ -161,11 +255,7 @@ class Transfer {
       /* List of files in this transfer */
       Files *myFiles;
 
-      /* Allows mutal exclusive access to the peers list */
-      CRITICAL_SECTION peersLock;
-
-      /* List of all the peers sent to us by the tracker keyed on their peerID*/
-      std::map<bee::String*, Peer*> peers;
+      PeerList *peers;
 
       /* Where the files are being saved */
       char savePath[MAX_PATH];
@@ -210,7 +300,7 @@ class Transfer {
       transferState state;
 
       /* This loops around connecting to the tracker and dishing out connections */
-      void static trackerThread(Transfer*);
+      static DWORD WINAPI trackerThread(LPVOID lpParameter);
 
       /* This sends data to the tracker and parses its return */
       void Transfer::sendTrackerData(char *event);
