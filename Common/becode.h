@@ -6,9 +6,9 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer. 
+   List of conditions and the following disclaimer. 
 2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
+   this List of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution. 
 3) Neither the name of the ByteTorrent nor the names of its contributors may be
    used to endorse or promote products derived from this software without
@@ -28,20 +28,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* 
    becode.h version 0.9 by me@bramp.net
-   becoding class allows to decode becoded data into a set of beeObjects
+   becoding class allows to decode becoded data into a set of Objects
 */
 
 #pragma once
 
 class bee {
    public:
-      /* Different types of beeObjects */
+      /* Different types of Objects */
       enum beeType {
          objectType,
-         dictionaryType,
-         listType,
-         integerType,
-         stringType
+         DictionaryType,
+         ListType,
+         IntegerType,
+         StringType
       };
    
       /* Thrown when invalid encoded data is found */
@@ -50,7 +50,7 @@ class bee {
       };
    
       /* Base Class Of beeCode Objects */
-      class beeObject {
+      class Object {
          public:
             /* Returns the type of object */
             virtual bee::beeType getType() { return bee::objectType; }; 
@@ -58,81 +58,82 @@ class bee {
             /* printf the data */
             virtual void printme(); 
             
-            /* Converts the object into a beedata string. Please free me afterwards */
+            /* Converts the object into a beedata String. Please free me afterwards */
             virtual char *encode(); 
             
             /* Length of the data in encoded form, must be used after encode() */
             int mEncodeLen;
       };
    
-      /* Static function to return a beeObject from a beedatastring */
-      static beeObject *decode(char *data, int *bytesRead);
+      /* Static function to return a Object from a beedataString */
+      static Object *decode(char *data, int *bytesRead);
    
       /* Dictionary */
-      class dictionary : public beeObject {
+      class Dictionary : public Object {
          private:
-            std::map<std::string, bee::beeObject*> dict;
+            std::map<std::string, bee::Object*> dict;
          public:
-            dictionary(char *data, int *bytesRead);
-            bee::beeType getType() { return bee::dictionaryType; };
+            Dictionary(char *data, int *bytesRead);
+            bee::beeType getType() { return bee::DictionaryType; };
             void printme();
             char *encode();
-            ~dictionary();
+            ~Dictionary();
             
-            /* Gets a beeObject matched with the key. If not found returns null */
-            bee::beeObject *get(char *key);
+            /* Gets a Object matched with the key. If not found returns null */
+            bee::Object *get(char *key);
             
-            /* Sets key and beeObject pair */
-            void set(char *key, bee::beeObject *value);
+            /* Sets key and Object pair */
+            void set(char *key, bee::Object *value);
             
-            /* Removes a beeObject from the list, and returns it. Null if not found */
-            bee::beeObject *remove(char *key);
+            /* Removes a Object from the List, and returns it. Null if not found */
+            bee::Object *remove(char *key);
       };
 
       /* List */      
-      class list : public beeObject  {
+      class List : public Object  {
          private:
             
-            class listItem {
+            class ListItem {
                public:
-                  listItem *nextPtr;
-                  beeObject *data;
+                  ListItem *nextPtr;
+                  Object *data;
             };
 
-            listItem *startPtr;
+            ListItem *startPtr;
+            int listCount;
 
          public:
-            list(char *data, int *bytesRead);
-            bee::beeType getType() { return bee::listType; };
+            List(char *data, int *bytesRead);
+            bee::beeType getType() { return bee::ListType; };
             void printme();
             char *encode();
-            ~list();
+            ~List();
             
-            /* Gets the beeObject at specified index */
-            bee::beeObject *get(int idx);
+            /* Gets the Object at specified index */
+            bee::Object *get(int idx);
             
-            /* Adds a beeObject to the list at idx */
-            void add(bee::beeObject *value, int idx=0);
+            /* Adds a Object to the List at idx */
+            void add(bee::Object *value, int idx=0);
             
-            /* Sets the beeObject at the specified index */
-            void set(int idx, bee::beeObject *value);
+            /* Sets the Object at the specified index */
+            void set(int idx, bee::Object *value);
             
-            /* Removes beeObject at idx and returns it */
-            bee::beeObject *remove(int idx);
+            /* Removes Object at idx and returns it */
+            bee::Object *remove(int idx);
             
-            /* Returns the number of elements in the list */
-            int count();
+            /* Returns the number of elements in the List */
+            int count() { return listCount; };
 
       };
 
       /* Integer (64 Bits) */      
-      class integer : public beeObject  {
+      class Integer : public Object  {
          private:
             INT64 mInt;
             
          public:
-            integer(char *data, int *bytesRead);
-            bee::beeType getType() { return bee::integerType; };
+            Integer(char *data, int *bytesRead);
+            bee::beeType getType() { return bee::IntegerType; };
             void printme();
             char *encode();
             
@@ -144,28 +145,29 @@ class bee {
       };
 
       /* String */      
-      class string : public beeObject  {
+      class String : public Object  {
          private:
             char *mString;
             int mLen;
 
          public:
-            string(char *data, int *bytesRead);
-            string(char *string, int len);
-            bee::beeType getType() { return bee::stringType; };
+            String(char *data, int *bytesRead);
+            String(char *String, int len = -1);
+            bee::beeType getType() { return bee::StringType; };
             void printme();
             char *encode();
-            ~string();
+            ~String();
             
-            /* Returns the string */
+            /* Returns the String */
             char *get();
             
-            /* Sets the string */
+            /* Sets the String */
             void set(char *newString, int len=-1);
             
-            /* Returns the length of the string */
+            /* Returns the length of the String */
             int getLength();
             
+            bool operator < ( const String );
       };
 };
 

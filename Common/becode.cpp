@@ -6,9 +6,9 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer. 
+   List of conditions and the following disclaimer. 
 2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
+   this List of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution. 
 3) Neither the name of the ByteTorrent nor the names of its contributors may be
    used to endorse or promote products derived from this software without
@@ -28,41 +28,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* 
    becode.cpp version 0.9 by me@bramp.net
-   becoding class allows to en/decode becoded data into a set of beeObjects
+   becoding class allows to en/decode becoded data into a set of Objects
 */
 
 #include "stdafx.h"
 #include "becode.h"
 
 /* These functions should never be called */
-void bee::beeObject::printme() {}
-char *bee::beeObject::encode() {return NULL;}
+void bee::Object::printme() {}
+char *bee::Object::encode() {return NULL;}
 
 /******************************************************************************
 Generic Encode/Decode Code Starts Here
 ******************************************************************************/
 
-/* Creates the require beeObject depending on data 
+/* Creates the require Object depending on data 
  [in] data - The bee data ie "i100e"
 [out] bytesRead - The number of bytes read from the data stream ie 5
 */
-bee::beeObject *bee::decode(char *data, int *bytesRead) {
-   bee::beeObject *newItem = NULL;
+bee::Object *bee::decode(char *data, int *bytesRead) {
+   bee::Object *newItem = NULL;
    
-   /* Switch the type of beedata and create correct beeObject */
+   /* Switch the type of beedata and create correct Object */
    switch (*data) {
       case 'i':
-         newItem = new bee::integer(data, bytesRead);
+         newItem = new bee::Integer(data, bytesRead);
          break;
       case '1': case '2':  case '3': case '4': case '5':
       case '6': case '7':  case '8': case '9':
-         newItem = new bee::string(data, bytesRead);
+         newItem = new bee::String(data, bytesRead);
          break;
       case 'l':
-         newItem = new bee::list(data, bytesRead);
+         newItem = new bee::List(data, bytesRead);
          break;
       case 'd':
-         newItem = new bee::dictionary(data, bytesRead);
+         newItem = new bee::Dictionary(data, bytesRead);
          break;
       default:
          throw InvalidBeeDataException("Invalid Becoded Type");
@@ -74,11 +74,11 @@ bee::beeObject *bee::decode(char *data, int *bytesRead) {
 Integer Object Starts Here
 ******************************************************************************/
 
-/* Creates a integer object from bee data.
+/* Creates a Integer object from bee data.
  [in] data - The bee data ie "i100e"
 [out] bytesRead - The number of bytes read from the data stream ie 5
 */
-bee::integer::integer(char *data, int *bytesRead) {
+bee::Integer::Integer(char *data, int *bytesRead) {
    
    char *beginData;
    char cInt[21];
@@ -101,7 +101,7 @@ bee::integer::integer(char *data, int *bytesRead) {
       if (((*data < '0') || (*data > '9')) && (*data != '-'))
          throw InvalidBeeDataException("Invalid Integer Data");
 
-      /* Increments the bytes read, and current string position */
+      /* Increments the bytes read, and current String position */
       (*bytesRead)++;
       data++;
    }
@@ -116,17 +116,17 @@ bee::integer::integer(char *data, int *bytesRead) {
 }
 
 /* Returns a int value of ourself */
-INT64 bee::integer::get() {
+INT64 bee::Integer::get() {
    return mInt;
 }
 
 /* Print a int value of ourself */
-void bee::integer::printme() {
+void bee::Integer::printme() {
    printf("%i", mInt);
 }
 
 /* Creates bee data from the object */
-char *bee::integer::encode() {
+char *bee::Integer::encode() {
    char *ret;
    
    ret = (char *)malloc(23); //Max size a int + 2 can be
@@ -141,11 +141,11 @@ char *bee::integer::encode() {
 String Object Starts Here
 ******************************************************************************/
 
-/* Creates a string object from bee data.
+/* Creates a String object from bee data.
  [in] data - The bee data ie "4:spam"
 [out] bytesRead - The number of bytes read from the data stream ie 6
 */
-bee::string::string(char *data, int *bytesRead) {
+bee::String::String(char *data, int *bytesRead) {
    
    char *beginData = data;
    char cInt[11];
@@ -190,26 +190,25 @@ bee::string::string(char *data, int *bytesRead) {
    
 }
 
-bee::string::string(char *string, int len) {
-   mLen = len;
-   mString = (char *)malloc(mLen + 1);
-   memcpy(mString, string, len+1);
+bee::String::String(char *String, int len) {
+   mString = NULL;
+   set(String, len);
 }
 
-/* Destory a string */
-bee::string::~string() {
+/* Destory a String */
+bee::String::~String() {
    if (mString != NULL)
       free(mString);
 }
 
-/* Returns a string value of ourself */
-char *bee::string::get() {
+/* Returns a String value of ourself */
+char *bee::String::get() {
    return mString;
 }
 
-void bee::string::set(char *newString, int len) {
+void bee::String::set(char *newString, int len) {
    
-   /* Free old string */
+   /* Free old String */
    if (mString != NULL)
       free(mString);   
       
@@ -219,16 +218,22 @@ void bee::string::set(char *newString, int len) {
    
    mLen = len;
    mString = (char *)malloc(mLen + 1);
-   strcpy(mString, newString);
+   memcpy(mString, newString, len+1);
+}
+
+bool bee::String::operator < ( const String value ) {
+   int len = min(this->mLen, value.mLen);
+
+   return (memcmp(this->mString, value.mString, len) < 0);
 }
 
 /* Returns the length of ourself */
-int bee::string::getLength() {
+int bee::String::getLength() {
    return mLen;
 }
 
-/* Print a string value of ourself */
-void bee::string::printme() {
+/* Print a String value of ourself */
+void bee::String::printme() {
    char *str;
    
    printf("'");
@@ -243,7 +248,7 @@ void bee::string::printme() {
 }
 
 /* Creates bee data from the object */
-char *bee::string::encode() {
+char *bee::String::encode() {
    char *ret;
    char *beginRet;
    char len[12];
@@ -268,19 +273,21 @@ char *bee::string::encode() {
 List Object Starts Here
 ******************************************************************************/
 
-/* Creates a list object from bee data.
+/* Creates a List object from bee data.
  [in] data - The bee data ie "l4:spam4:eggse"
 [out] bytesRead - The number of bytes read from the data stream ie 14
 */
-bee::list::list(char *data, int *bytesRead) {
+bee::List::List(char *data, int *bytesRead) {
   
    int bytes;
-   listItem *lastPtr = NULL;
+   ListItem *lastPtr = NULL;
    
    /* Initilise some varibles */
    startPtr = NULL;
    *bytesRead = 0;
    
+   listCount = 0;
+
    /* Check the data starts with a l */
    if (*data != 'l')
       throw InvalidBeeDataException("Invalid List Data");
@@ -291,19 +298,20 @@ bee::list::list(char *data, int *bytesRead) {
    /* Loop until we find a e */
    /* *NOTE POSSIBLE INFINITE LOOP* */
    while (*data!='e') {
-      listItem *item;
+      ListItem *item;
       
-      /* Create a new listItem */
-      item = new listItem();
-      
-      /* Add element onto end of the list or begining of the list*/
+      /* Create a new ListItem */
+      item = new ListItem();
+      listCount++;
+
+      /* Add element onto end of the List or begining of the List*/
       if (lastPtr == NULL) {
          startPtr = item;
       } else {
          lastPtr->nextPtr = item;
       }
       
-      /* Populate the new list item */
+      /* Populate the new List item */
       item->nextPtr = NULL;
       item->data = bee::decode(data, &bytes);
       
@@ -317,12 +325,12 @@ bee::list::list(char *data, int *bytesRead) {
    (*bytesRead)++;
 }
 
-/* Destory a list */
-bee::list::~list() {
+/* Destory a List */
+bee::List::~List() {
 
-   /* Iterate the list destorying it */
+   /* Iterate the List destorying it */
    while (startPtr!=NULL) {
-      listItem *tmpItem = startPtr->nextPtr;
+      ListItem *tmpItem = startPtr->nextPtr;
       delete startPtr->data;
       delete startPtr;
       startPtr = tmpItem;
@@ -330,9 +338,29 @@ bee::list::~list() {
       
 }
 
-/* Print a list of ourself */
-void bee::list::printme() {
-   listItem *next;
+/* Gets the Object at specified index */
+bee::Object *bee::List::get(int idx) {
+
+   int i;
+   ListItem *listPtr;
+
+   if (idx > listCount) {
+      //Throw a exception
+   }
+
+   listPtr = startPtr;
+
+   for (i = 0; i < idx; i++) {
+      listPtr = listPtr->nextPtr;
+   }
+
+   return listPtr->data;
+
+}
+
+/* Print a List of ourself */
+void bee::List::printme() {
+   ListItem *next;
    
    next = startPtr;
    printf("[");
@@ -346,9 +374,9 @@ void bee::list::printme() {
 }
 
 /* Creates bee data from the object */
-char *bee::list::encode() {
+char *bee::List::encode() {
    
-   listItem *nextItem;
+   ListItem *nextItem;
    std::string data;
    char *ret;
 
@@ -356,14 +384,14 @@ char *bee::list::encode() {
    data = "l";
    nextItem = startPtr;
    
-   /* Iterate the list */
+   /* Iterate the List */
    while (nextItem!=NULL) {
       char *value;
       
       /* Get the encoded data for this object */
       value = nextItem->data->encode();
       
-      /* Now append to our string */
+      /* Now append to our String */
       data.append(value, nextItem->data->mEncodeLen);
       
       /* Free the return char array */
@@ -388,15 +416,15 @@ char *bee::list::encode() {
 Dictionary Object Starts Here
 ******************************************************************************/
 
-/* Creates a dictionary object from bee data.
+/* Creates a Dictionary object from bee data.
  [in] data - The bee data ie "d3:cow3:moo4:spam4:eggse"
 [out] bytesRead - The number of bytes read from the data stream ie 24
 */
-bee::dictionary::dictionary(char *data, int *bytesRead) {
+bee::Dictionary::Dictionary(char *data, int *bytesRead) {
 
    int bytes = 0;
-   bee::string *key;
-   bee::beeObject *value;
+   bee::String *key;
+   bee::Object *value;
 
    *bytesRead = 0;
 
@@ -407,20 +435,20 @@ bee::dictionary::dictionary(char *data, int *bytesRead) {
    data++;
    (*bytesRead)++;
    
-   /* Loop until the end of the dictionary */
+   /* Loop until the end of the Dictionary */
    while (*data != 'e') {
       
-      /* Read the key which should be a string */
-      key = (bee::string *) bee::decode(data, &bytes);
+      /* Read the key which should be a String */
+      key = (bee::String *) bee::decode(data, &bytes);
       
-      if (key->getType()!=bee::stringType)
+      if (key->getType()!=bee::StringType)
          throw InvalidBeeDataException("Invalid Key");
             
-      /* Move past the string */
+      /* Move past the String */
       data += bytes;
       (*bytesRead) += bytes;
       
-      /* Now read the value of type beeObject */
+      /* Now read the value of type Object */
       value = bee::decode(data, &bytes);
       
       /* Move past the object */
@@ -438,10 +466,10 @@ bee::dictionary::dictionary(char *data, int *bytesRead) {
  
 }
 
-/* Destory a dictionary */
-bee::dictionary::~dictionary() {
-   bee::beeObject *value;
-   std::map<std::string, bee::beeObject*>::iterator dictIter;
+/* Destory a Dictionary */
+bee::Dictionary::~Dictionary() {
+   bee::Object *value;
+   std::map<std::string, bee::Object*>::iterator dictIter;
       
    for ( dictIter = dict.begin(); dictIter != dict.end(); dictIter++ ) {
 
@@ -454,15 +482,15 @@ bee::dictionary::~dictionary() {
 }
 
 /* Gets the value associated with the key */
-bee::beeObject *bee::dictionary::get(char *key) {
+bee::Object *bee::Dictionary::get(char *key) {
    return dict[key];
 }
 
-/* Print a dictionary of ourself */
-void bee::dictionary::printme() {
+/* Print a Dictionary of ourself */
+void bee::Dictionary::printme() {
    std::string key;
-   bee::beeObject *value;
-   std::map<std::string, bee::beeObject*>::iterator dictIter;
+   bee::Object *value;
+   std::map<std::string, bee::Object*>::iterator dictIter;
    
    printf("{\n");
    
@@ -492,11 +520,11 @@ void bee::dictionary::printme() {
 }
 
 /* Creates bee data from the object */
-char *bee::dictionary::encode() {
+char *bee::Dictionary::encode() {
    std::string key;
-   bee::string *keyString;
-   bee::beeObject *value;
-   std::map<std::string, bee::beeObject*>::iterator dictIter;
+   bee::String *keyString;
+   bee::Object *value;
+   std::map<std::string, bee::Object*>::iterator dictIter;
    std::string data;
    char *ret;
    
@@ -512,8 +540,8 @@ char *bee::dictionary::encode() {
       key = dictIter->first;
       value = dictIter->second;
       
-      /* Make the key into a string */
-      keyString = new bee::string((char*)key.data(), (int)key.length());
+      /* Make the key into a String */
+      keyString = new bee::String((char*)key.data(), (int)key.length());
       
       /* Get, append and free returned key data */
       tmpChar = keyString->encode();
