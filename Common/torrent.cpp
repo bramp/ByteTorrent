@@ -126,7 +126,7 @@ const char *torrent::getTracker() {
    bee::string *tracker;
    tracker = (bee::string *)beeData->get("announce");
    if (tracker != NULL)
-      return tracker->getString(); 
+      return tracker->get(); 
    else
       return NULL;
 }
@@ -135,8 +135,8 @@ const char *torrent::setTracker(char *newTracker) {
    bee::string *tracker;
    tracker = (bee::string *)beeData->get("announce");
    if (tracker != NULL) {
-      tracker->setString(newTracker);
-      return tracker->getString(); 
+      tracker->set(newTracker);
+      return tracker->get(); 
    } else {
       return NULL;
    }
@@ -160,7 +160,7 @@ const unsigned char *torrent::getInfoString(char *key) {
       return NULL;
    }
    
-   return (const unsigned char *)(value->getString());
+   return (const unsigned char *)(value->get());
 }
 
 /* Gives you a field from the info section of the torrent
@@ -181,7 +181,7 @@ INT64 torrent::getInfoInteger(char *key) {
       return NULL;
    }
    
-   return (value->getInt());
+   return (value->get());
 }
 
 /* Gives you filename/length of files in torrent

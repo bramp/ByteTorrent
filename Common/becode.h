@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class bee {
    public:
+      /* Different types of beeObjects */
       enum beeType {
          objectType,
          dictionaryType,
@@ -43,18 +44,28 @@ class bee {
          stringType
       };
    
+      /* Thrown when invalid encoded data is found */
       class InvalidBeeDataException : public Exception {
          public: InvalidBeeDataException(char *error) { mError = error; };
       };
    
+      /* Base Class Of beeCode Objects */
       class beeObject {
          public:
-            virtual void printme(); /* printf the data */
-            virtual bee::beeType getType() { return bee::objectType; }; /* Returns the type of object */
-            virtual char *encode(); /* Converts the object into bee data */
+            /* Returns the type of object */
+            virtual bee::beeType getType() { return bee::objectType; }; 
+            
+            /* printf the data */
+            virtual void printme(); 
+            
+            /* Converts the object into a beedata string. Please free me afterwards */
+            virtual char *encode(); 
+            
+            /* Length of the data in encoded form, must be used after encode() */
             int mEncodeLen;
       };
    
+      /* Static function to return a beeObject from a beedatastring */
       static beeObject *decode(char *data, int *bytesRead);
    
       /* Dictionary */
@@ -64,15 +75,18 @@ class bee {
          public:
             dictionary(char *data, int *bytesRead);
             bee::beeType getType() { return bee::dictionaryType; };
+            void printme();
+            char *encode();
             ~dictionary();
             
+            /* Gets a beeObject matched with the key. If not found returns null */
             bee::beeObject *get(char *key);
+            
+            /* Sets key and beeObject pair */
             void set(char *key, bee::beeObject *value);
+            
+            /* Removes a beeObject from the list, and returns it. Null if not found */
             bee::beeObject *remove(char *key);
-            
-            void printme();
-            
-            char *encode();
       };
 
       /* List */      
@@ -84,36 +98,49 @@ class bee {
                   listItem *nextPtr;
                   beeObject *data;
             };
-                     
+
             listItem *startPtr;
 
          public:
             list(char *data, int *bytesRead);
             bee::beeType getType() { return bee::listType; };
-            ~list();
-            
-            bee::beeObject *get(int idx);
-            void set(int idx, bee::beeObject *value);
-            void add(bee::beeObject *value, int idx=0);
-            bee::beeObject *remove(int idx);
-            int count();
-            
             void printme();
             char *encode();
+            ~list();
+            
+            /* Gets the beeObject at specified index */
+            bee::beeObject *get(int idx);
+            
+            /* Adds a beeObject to the list at idx */
+            void add(bee::beeObject *value, int idx=0);
+            
+            /* Sets the beeObject at the specified index */
+            void set(int idx, bee::beeObject *value);
+            
+            /* Removes beeObject at idx and returns it */
+            bee::beeObject *remove(int idx);
+            
+            /* Returns the number of elements in the list */
+            int count();
+
       };
 
-      /* Integer */      
+      /* Integer (64 Bits) */      
       class integer : public beeObject  {
          private:
             INT64 mInt;
             
          public:
             integer(char *data, int *bytesRead);
-            INT64 getInt();
-            void set(INT64 value);
-            void printme();
             bee::beeType getType() { return bee::integerType; };
+            void printme();
             char *encode();
+            
+            /* Returns the int */
+            INT64 get();
+            
+            /* Sets the int */
+            void set(INT64 value);
       };
 
       /* String */      
@@ -125,13 +152,20 @@ class bee {
          public:
             string(char *data, int *bytesRead);
             string(char *string, int len);
-            ~string();
-            char *getString();
-            void setString(char *newString, int len=-1);
-            int getLength();
-            void printme();
             bee::beeType getType() { return bee::stringType; };
+            void printme();
             char *encode();
+            ~string();
+            
+            /* Returns the string */
+            char *get();
+            
+            /* Sets the string */
+            void set(char *newString, int len=-1);
+            
+            /* Returns the length of the string */
+            int getLength();
+            
       };
 };
 

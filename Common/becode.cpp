@@ -116,7 +116,7 @@ bee::integer::integer(char *data, int *bytesRead) {
 }
 
 /* Returns a int value of ourself */
-INT64 bee::integer::getInt() {
+INT64 bee::integer::get() {
    return mInt;
 }
 
@@ -203,11 +203,11 @@ bee::string::~string() {
 }
 
 /* Returns a string value of ourself */
-char *bee::string::getString() {
+char *bee::string::get() {
    return mString;
 }
 
-void bee::string::setString(char *newString, int len) {
+void bee::string::set(char *newString, int len) {
    
    /* Free old string */
    if (mString != NULL)
@@ -428,7 +428,7 @@ bee::dictionary::dictionary(char *data, int *bytesRead) {
       (*bytesRead) += bytes;
       
       /* Place this info into the map */
-      dict[key->getString()] = value;
+      dict[key->get()] = value;
       
       /* Clean up the key since we don't see it anymore */
       delete key;
