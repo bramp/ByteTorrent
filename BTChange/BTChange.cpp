@@ -31,7 +31,7 @@ Nice little Torrent File Editing Console App
 Allows you to change the name of the trackers for a bunch of files
 
 CHANGELOG
-0.95 Fixed a directory problem
+0.95 Fixed a directory problem (ie Not Found)
 0.94 Fixed a memory leak... opps
      Added better directory support ie for btchange c:\blah
 0.93 Stopped it from thinking directories were files
