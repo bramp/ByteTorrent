@@ -26,42 +26,30 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// ByteTorrent.cpp : Defines the entry point for the console application.
-// http://bitconjurer.org/BitTorrent/protocol.html
+/* 
+   log.h version 0.9 by me@bramp.net
+   Simple logging class
+*/
 
-#include "stdafx.h"
-#include "common/transfer.h"
+#ifndef ___LOG_H___
+#define ___LOG_H___
 
-int _tmain(int argc, _TCHAR* argv[]) {
-   
-   Transfer *download;
-   
-   char *filename = "C:\\downloads\\BitTorrent-3.2.1b.zip.torrent";
-
-   Log::OpenLog("log.txt");
-
-   try {
-
-      download = new Transfer(filename);
+class Log {
+   private:
+      static void getTime(char *buffer);
+      static void writeFile(char *buffer);
       
-      download->setSaveLocation ("c:\\downloads\\");
-      download->setup();
-      download->start();
+      static HANDLE logFile;
+      static CRITICAL_SECTION logMutex;
 
-      while (download->getPiecesLeft() > 0) {
-         Sleep(1000);
-      }
+   public:
+      static void OpenLog(char *filename);
+      static void CloseLog();
 
-      delete download;
+      static void AddMsg(char *message, void *arg1 = NULL, void *arg2 = NULL);
+      static void AddErrMsg(char *message, DWORD err, void *arg1 = NULL, void *arg2 = NULL);
+      static void AddWsaMsg(char *message, int err, void *arg1 = NULL, void *arg2 = NULL);
 
-   } catch (Torrent::TorrentNotFoundException) {
-      printf("Torrent not found\n");
-   } catch (File::DiskFullException e) {
-      printf("Diskfull writing %s\n", e.Filename );
-   }
+};
 
-   Log::CloseLog("log.txt");
-
-   return 0;
-}
-
+#endif // ___LOG_H___

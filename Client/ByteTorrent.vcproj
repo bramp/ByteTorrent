@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding = "Windows-1252"?>
+<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="7.00"
+	Version="7.10"
 	Name="ByteTorrent"
 	ProjectGUID="{F3D3D042-41EA-4004-8733-09BC3F888FB9}"
 	Keyword="Win32Proj">
@@ -54,7 +54,13 @@
 			<Tool
 				Name="VCWebServiceProxyGeneratorTool"/>
 			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
 				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
 		</Configuration>
 		<Configuration
 			Name="Release|Win32"
@@ -101,9 +107,17 @@
 			<Tool
 				Name="VCWebServiceProxyGeneratorTool"/>
 			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
 				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
 		</Configuration>
 	</Configurations>
+	<References>
+	</References>
 	<Files>
 		<Filter
 			Name="Source Files"
@@ -141,9 +155,6 @@
 			Name="Common Source"
 			Filter="">
 			<File
-				RelativePath="..\Common\SHA1.cpp">
-			</File>
-			<File
 				RelativePath="..\Common\becode.cpp">
 			</File>
 			<File
@@ -151,6 +162,15 @@
 			</File>
 			<File
 				RelativePath="..\Common\file.cpp">
+			</File>
+			<File
+				RelativePath=".\log.cpp">
+			</File>
+			<File
+				RelativePath="..\Common\peer.cpp">
+			</File>
+			<File
+				RelativePath="..\Common\SHA1.cpp">
 			</File>
 			<File
 				RelativePath="..\Common\torrent.cpp">
@@ -166,14 +186,6 @@
 			Name="Common Header"
 			Filter="">
 			<File
-				RelativePath="..\Common\SHA1.h">
-				<FileConfiguration
-					Name="Release|Win32">
-					<Tool
-						Name="VCCustomBuildTool"/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath="..\Common\becode.h">
 			</File>
 			<File
@@ -181,6 +193,17 @@
 			</File>
 			<File
 				RelativePath="..\Common\file.h">
+			</File>
+			<File
+				RelativePath=".\log.h">
+			</File>
+			<File
+				RelativePath="..\Common\SHA1.h">
+				<FileConfiguration
+					Name="Release|Win32">
+					<Tool
+						Name="VCCustomBuildTool"/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath="..\Common\torrent.h">
