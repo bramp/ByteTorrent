@@ -31,6 +31,7 @@ Nice little Torrent File Editing Console App
 Allows you to change the name of the trackers for a bunch of files
 
 CHANGELOG
+0.95 Fixed a directory problem
 0.94 Fixed a memory leak... opps
      Added better directory support ie for btchange c:\blah
 0.93 Stopped it from thinking directories were files
@@ -43,7 +44,7 @@ CHANGELOG
 #include "stdafx.h"
 #include "common/torrent.h"
 
-#define VERSION "0.94"
+#define VERSION "0.95"
 
 /* Different error messages in the app */
 #define FINDERROR "Please specify word to find\n"
@@ -164,7 +165,10 @@ int _tmain(int argc, _TCHAR* argv[]) {
             if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
                
                /* Find its full path */
-               _snprintf(currentFile, MAX_PATH, "%s\\%s", searchDirectory, FindFileData.cFileName);
+               if (searchDirectory[0] != '\0')
+                  _snprintf(currentFile, MAX_PATH, "%s\\%s", searchDirectory, FindFileData.cFileName);
+               else
+                  strncpy(currentFile, FindFileData.cFileName, MAX_PATH);
                
                /* Open the torrent */
                t = new torrent(currentFile);
@@ -195,10 +199,10 @@ int _tmain(int argc, _TCHAR* argv[]) {
             } /* if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) */
          
          } catch (torrent::TorrentNotFoundException) {
-            printf ("%s\n", FindFileData.cFileName);
+            printf ("%s\n", currentFile);
             printf ("Not Found\n\n");
          } catch (torrent::InvalidTorrentException) {
-            printf ("%s\n", FindFileData.cFileName);
+            printf ("%s\n", currentFile);
             printf ("Invalid Torrent File\n\n");
          }
 
